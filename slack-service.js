@@ -39,11 +39,6 @@ elements.getActionSelection = () => {
           "value": "postpon"
         };
   
-  // const initial_option = 
-  //       init === "rental"  ? opt_rental :
-  //       init === "return"  ? opt_return :
-  //       init === "postpon" ? opt_postpon : undefined;
-  
   return {
     "type": "section",
     "block_id": "action",
@@ -59,7 +54,6 @@ elements.getActionSelection = () => {
         "text": "貸し出し"
       },
       "action_id": "action",
-      // "initial_option": initial_option,
       "options": [
         opt_rental, opt_return, opt_postpon
       ]
@@ -77,14 +71,15 @@ elements.getCategorySelection = (category_list) => {
 			"text": ":spiral_note_pad:  デバイス区分"
 		},
 		"accessory": {
-			"type": "static_select",
+			// "type": "external_select",
+      "type": "static_select",
       "action_id": "device_category",
 			"placeholder": {
 				"type": "plain_text",
 				"text": "Android, iOS, FireOS, Chromecast",
 				"emoji": true
 			},
-			"options": []
+			// "options": []
     }
   };
 
@@ -99,9 +94,6 @@ elements.getCategorySelection = (category_list) => {
         "value": category
       }
     });
-  
-  // block.accessory.initial_option = block.accessory.options
-  //   .find(opt => opt.value === init);
   
   return block;
 };
@@ -137,14 +129,11 @@ elements.getDeviceSelection = (device_list) => {
 					"value": device
       }
     });
-		  
-//   block.accessory.initial_option = block.accessory.options
-//     .find(opt => opt.value === init);
   
   return block;
 };
 
-elements.getDatePickerToReturn = (init) => {
+elements.getDatePickerToReturn = () => {
 
   return {
 		"type": "section",
@@ -155,7 +144,7 @@ elements.getDatePickerToReturn = (init) => {
 		},
 		"accessory": {
 			"type": "datepicker",
-			"initial_date": init,
+			"initial_date": getTodayStr(),
 			"action_id": "return_date",
 			"placeholder": {
 				"type": "plain_text",
@@ -166,33 +155,8 @@ elements.getDatePickerToReturn = (init) => {
 	}
 };
 
-elements.getConfirmMessage = () => {
-  return {
-		"type": "section",
-    "block_id": "submit",
-		"text": {
-			"type": "plain_text",
-			"text": ":woman-tipping-hand:  以上の内容でよろしいでしょうか:question: ",
-			"emoji": true
-		}
-	};
-}
-
-elements.getSubmitButtons = () => {
-  return {
-		"type": "actions",
-		"elements": [
-			{
-				"type": "button",
-        "action_id": "submit",
-				"text": {
-					"type": "plain_text",
-					"text": "いいよー :+1: ",
-					"emoji": true
-				},
-				"value": "ok"
-			},
-      {
+elements.getSubmitButtons = (item) => {
+  const cancel = {
 				"type": "button",
         "action_id": "cancel",
 				"text": {
@@ -201,10 +165,46 @@ elements.getSubmitButtons = () => {
 					"emoji": true
 				},
 				"value": "cancel"
-			}  
-		]
+			};
+  const ok = {
+				"type": "button",
+        "action_id": "submit",
+				"text": {
+					"type": "plain_text",
+					"text": "いいよー :+1: ",
+					"emoji": true
+				},
+				"value": "ok"
+			};
+  
+  const block = {
+		"type": "actions",
+		"elements": undefined
 	};
+  const elements = [cancel];
+  if (areRequiredParamsSet(item)) elements.push(ok);
+  block.elements = elements;
+  
+  return block;
 };
+
+const areRequiredParamsSet = (item) => {
+  if (item.action === "rental") {
+    return typeof item.device_category === typeof '' &&
+      typeof item.rental_device === typeof '' &&
+      typeof item.return_date === typeof '' &&
+      typeof item.username === typeof '';
+  } else if (item.action === "return") {
+    return typeof item.rental_device === typeof '' &&
+      typeof item.username === typeof '';
+  } else if (item.action === "postpon") {
+    return typeof item.rental_device === typeof '' &&
+      typeof item.return_date === typeof '' &&
+      typeof item.username === typeof '';
+  } else {
+    return false;
+  }
+}
 
 const blocks = {};
 
@@ -215,36 +215,7 @@ blocks.toSelectAction = (item) => {
     elements.getActionSelection(),
   ];
 }
-	
-blocks.toSelectDeviceCategoryWhenRental = (item) => {
-  return [
-    elements.title,
-    elements.divider,
-    elements.getActionSelection(),
-    elements.getCategorySelection(item.device_category_list)
-  ];
-};
 
-blocks.toSelectRentalDeviceWhenRental = (item) => {
-  return [
-    elements.title,
-    elements.divider,
-    elements.getActionSelection(),
-    elements.getCategorySelection(item.device_category_list),
-    elements.getDeviceSelection(item.rental_device_list),
-  ]
-};
-
-blocks.toSelectReturnDateWhenRental = (item) => {
-  return [
-    elements.title,
-    elements.divider,
-    elements.getActionSelection(),
-    elements.getCategorySelection(item.device_category_list),
-    elements.getDeviceSelection(item.rental_device_list),
-    elements.getDatePickerToReturn(getToday())
-  ]
-};
 blocks.toSubmitWhenRental = (item) => {
   return [
     elements.title,
@@ -252,21 +223,11 @@ blocks.toSubmitWhenRental = (item) => {
     elements.getActionSelection(),
     elements.getCategorySelection(item.device_category_list,),
     elements.getDeviceSelection(item.rental_device_list),
-    elements.getDatePickerToReturn(getToday()),
+    elements.getDatePickerToReturn(),
     elements.divider,
-    elements.getConfirmMessage(),
-    elements.getSubmitButtons()
+    elements.getSubmitButtons(item)
   ]
 }
-
-blocks.toSelectRentalDeviceWhenReturn = (item) => {
-  return [
-    elements.title,
-    elements.divider,
-    elements.getActionSelection(),
-    elements.getDeviceSelection(item.rental_device_list),
-  ];
-};
 
 blocks.toSubmitWhenReturn = (item) => {
   return [
@@ -275,38 +236,19 @@ blocks.toSubmitWhenReturn = (item) => {
     elements.getActionSelection(),
     elements.getDeviceSelection(item.rental_device_list),
     elements.divider,
-    elements.getConfirmMessage(),
-    elements.getSubmitButtons()
+    elements.getSubmitButtons(item)
   ]
 }
 
-blocks.toSelectRentalDeviceWhenPostpon = (item) => {
-  return [
-    elements.title,
-    elements.divider,
-    elements.getActionSelection(),
-    elements.getDeviceSelection(item.rental_device_list),
-  ];
-}
-blocks.toSelectReturnDateWhenPostpon = (item) => {
-  return [
-    elements.title,
-    elements.divider,
-    elements.getActionSelection(),
-    elements.getDeviceSelection(item.rental_device_list),
-    elements.getDatePickerToReturn(getToday()),
-  ];
-}
 blocks.toSubmitWhenPostpon = (item) => {
   return [
     elements.title,
     elements.divider,
     elements.getActionSelection(),
     elements.getDeviceSelection(item.rental_device_list),
-    elements.getDatePickerToReturn(getToday()),
+    elements.getDatePickerToReturn(),
     elements.divider,
-    elements.getConfirmMessage(),
-    elements.getSubmitButtons()
+    elements.getSubmitButtons(item)
   ];
 }
 
@@ -332,24 +274,19 @@ const send = (url, json) => {
     }
   };
   
-  const req = https.request(url, options, (res) => {
-    res.on('end', () => {
-      console.log("send responsed.");
-    });
-  });
+  const req = https.request(url, options, (res) => {});
   
   req.write(JSON.stringify(json));
   req.end();
-
 };
 
-const getToday = () => {
-  const today = new Date();
-  const year = `${today.getFullYear()}`;
-  const month = `${today.getMonth() + 1}`.padStart(2, "0");
-  const date = `${today.getDate()}`.padStart(2, "0");
+const formatDate = (d) => {
+  const year = `${d.getFullYear()}`;
+  const month = `${d.getMonth() + 1}`.padStart(2, "0");
+  const date = `${d.getDate()}`.padStart(2, "0");
   return `${year}-${month}-${date}`;
 }
 
+const getTodayStr = () => formatDate(new Date());
 
-module.exports = { blocks, send } ;
+module.exports = { blocks, send, getTodayStr } ;

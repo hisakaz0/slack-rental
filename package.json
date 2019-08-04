@@ -1,7 +1,7 @@
 {
-  "name": "slash-command-blockkit-example",
+  "name": "slack-rental-app",
   "version": "1.0.0",
-  "description": "Slack Block Kit Sample",
+  "description": "Slack Rental App with Block Kit",
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
@@ -14,10 +14,8 @@
   "author": "Tomomi Imura",
   "license": "MIT",
   "dependencies": {
-    "axios": "^0.16.1",
     "body-parser": "^1.17.1",
     "express": "^4.15.2",
-    "tsscmp": "^1.0.6",
-    "qs": "^6.6.0"
+    "tsscmp": "^1.0.6"
   }
 }

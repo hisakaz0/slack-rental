@@ -6,8 +6,6 @@
 
 const express = require('express');
 const bodyParser = require('body-parser');
-// const axios = require('axios');
-//const qs = require('qs');
 const signature = require('./verifySignature');
 const slackService = require('./slack-service');
 
@@ -39,10 +37,6 @@ app.post('/rental-device', async (req, res) => {
     return;
   }
   
-  // console.log(req.body);
-  // req.body.user_name
-  
-  // and send back an HTTP response with data
   const message = {
     response_type: 'ephemeral',
     blocks: slackService.blocks.toSelectAction()
@@ -94,6 +88,8 @@ class ItemStore {
 }
 
 const itemStore = new ItemStore();
+
+
 /*
  * Interactive Components Endpoint
  */
@@ -105,21 +101,14 @@ app.post('/interact-with-slack', async (req, res) => {
   }
   
   const payload = JSON.parse(req.body.payload);
-  // console.log(payload.trigger_id);
-  // console.log(JSON.stringify(payload));
-  // console.log(payload);
-  // console.log(payload.message.blocks);
-  // console.log(payload.actions);
   
-  const selected = {
-    action: getActionSelected(payload, 'action'),
-    device_category: getActionSelected(payload, 'device_category'),
-    return_date: getActionSelected(payload, 'return_date'),
-    rental_device: getActionSelected(payload, 'rental_device'),
-    submit: getActionSelected(payload, 'submit'),
-    cancel: getActionSelected(payload, 'cancel')
-  };
-  
+  const selected = [
+    'action', 'device_category','return_date', 'rental_device', 'submit', 'cancel'
+  ].map(id => {
+    return { key: id, val: getActionSelected(payload, id) }
+  }).find(
+    i => typeof i.val !== typeof undefined
+  );
   
   const item = itemStore.load(payload);
   item.username = payload.user.username;
@@ -127,76 +116,68 @@ app.post('/interact-with-slack', async (req, res) => {
   const device_category_list = ["Android", "iOS", "FireOS"];
   const rental_device_list = ["Xperia 1", "Pixel 3", "Essential", "Huawei P30"];
   
-  const message = {
-    response_type: 'ephemeral', // only visible to you
-  };
-  
-  // console.log({ selected: selected, item: item, blocks: JSON.stringify(payload.message.blocks)  });
-  const isString = (s) => typeof s === typeof '';
-      
-  if (isString(selected.action)) {
-    if (selected.action === "postpon" ) {
-      item.action = selected.action;
-      item.rental_device_list = rental_device_list;
-      item.return_date = getToday();
-      message.blocks = slackService.blocks.toSelectReturnDateWhenPostpon(item);
-    } else if (selected.action === "return" ) {
-      item.action = selected.action;
-      item.rental_device_list = rental_device_list;
-      message.blocks = slackService.blocks.toSelectRentalDeviceWhenReturn(item);
-    } else if (selected.action === "rental") {
-      item.action = selected.action;
-      item.device_category_list = device_category_list;
-      message.blocks = slackService.blocks.toSelectDeviceCategoryWhenRental(item);
-    }
-    itemStore.save(payload, item);
-  } else if (isString(selected.device_category)) {
-    item.action = 'rental'; // action is rental ONLY
-    item.device_category_list = device_category_list;
-    item.device_category = selected.device_category;
+  let message = {};
+    
+  // set item 
+  if (selected.key === 'action') {
+    item.action = selected.val;
     item.rental_device_list = rental_device_list;
-    message.blocks = slackService.blocks.toSelectRentalDeviceWhenRental(item);
-    itemStore.save(payload, item);
-  } else if (isString(selected.rental_device)) {
-    if (item.action === 'return') {
-      item.rental_device = selected.rental_device;
-      message.blocks = slackService.blocks.toSubmitWhenReturn(item);
-    } else if (item.action === 'postpon') {
-      item.rental_device = selected.rental_device;
-      message.blocks = slackService.blocks.toSelectReturnDateWhenPostpon(item);
-    } else if (item.action === 'rental') {
-      item.rental_device = selected.rental_device;
-      message.blocks = slackService.blocks.toSelectReturnDateWhenRental(item);
-    }
-    itemStore.save(payload, item);
-  } else if (isString(selected.return_date)) {
-    if (item.action === 'rental') {
-      item.return_date = selected.return_date;
-      message.blocks = slackService.blocks.toSubmitWhenRental(item);
-    } else if (item.action === 'postpon') {
-      item.return_date = selected.return_date;
-      message.blocks = slackService.blocks.toSubmitWhenPostpon(item);
-    }
-    itemStore.save(payload, item);
-  } else if (selected.submit === 'ok') {
-    message.blocks = undefined;
-    message.text = 'Accepted';
-    message.response_type = 'in_channel';
-    console.log({ item: item, submit: true });
-    itemStore.delete(payload);
-  } else if (selected.cancel === 'cancel') {
-    message.blocks = undefined;
-    message.text = 'ByeBey.';
-    message.response_type = 'in_channel';
-    itemStore.delete(payload);
+    item.device_category_list = device_category_list;
+    item.return_date = slackService.getTodayStr();
+  } else if (selected.key === 'device_category') {
+    item.device_category = selected.val;
+  } else if (selected.key === 'rental_device') {
+    item.rental_device = selected.val;
+  } else if (selected.key === 'return_date') {
+    item.return_date = selected.val;
   }
-  console.log(item, selected);
-
+  
+  // set blocks or text, response_type
+  if (selected.key === 'submit') {
+    message = { 
+      response_type: 'in_channel',
+      text: 'Accepted'
+    };
+  } else if (selected.key === 'cancel') {
+    message = {
+      response_type: 'ephemeral',
+      text: 'ByeBey.'
+    };
+  } else if (item.action === "rental" ) {
+    message = {
+      response_type: 'ephemeral',
+      blocks: slackService.blocks.toSubmitWhenRental(item)
+    };
+  } else if (item.action === "return" ) {
+    message = {
+      response_type: 'ephemeral',
+      blocks: slackService.blocks.toSubmitWhenReturn(item)
+    };
+  } else if (item.action === "postpon") {
+    message = {
+      response_type: 'ephemeral',
+      blocks: slackService.blocks.toSubmitWhenPostpon(item)
+    };
+  } 
+  
+  // console.log({ selected: selected, item: item });
+  
+  // save or delete item
+  if (selected.key === 'submit') {
+    itemStore.delete(payload);
+  } else if (selected.key === 'cancel') {
+    message.response_type = 'ephemeral'; // only visible to you
+    itemStore.delete(payload);
+  } else {
+    message.response_type = 'ephemeral'; // only visible to you
+    itemStore.save(payload, item);
+  }
+  
   // console.log(JSON.stringify(message));
+  
   slackService.send(payload.response_url, message);
   res.end();
 });
-
 
 const getActionSelected = (payload, act_id) => {
   const act = payload.actions
@@ -207,37 +188,18 @@ const getActionSelected = (payload, act_id) => {
          act.type === "button"        ? act.value                 : undefined;
 };
 
-const getSelectedInMessage = (payload, blk_id) => {
-  const blk = payload.message.blocks
-    .find(blk => blk.block_id === blk_id);
-  if (blk == undefined ||
-      blk.accessory === undefined ||
-      blk.accessory.initial_option === undefined) return;
-  return blk.accessory.initial_option.value;
-}
 
-const getValue = (payload, key) => {
-  const curr = getActionSelected(payload, key);
-  const prev = getSelectedInMessage(payload, key); 
-  return curr === undefined ? prev : curr;
-}
-
-const getToday = () => {
-  const today = new Date();
-  const year = `${today.getFullYear()}`;
-  const month = `${today.getMonth() + 1}`.padStart(2, "0");
-  const date = `${today.getDate()}`.padStart(2, "0");
-  return `${year}-${month}-${date}`;
-}
-
+/* 
+ * Load options from external source.
+ */ 
 app.post('/load-options', (req, res) => {
+  
+  console.log(res.body);
   
   if (!signature.isVerified(req)) {
     res.sendStatus(404);
     return;
   }
-  
-  console.log(res.body);
   
   let category_list = ["Android", "iOS", "FireOS"].map(str => {
     return { key: str, value: str };
