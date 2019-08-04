@@ -1,0 +1,23 @@
+{
+  "name": "slash-command-blockkit-example",
+  "version": "1.0.0",
+  "description": "Slack Block Kit Sample",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "bot",
+    "slack"
+  ],
+  "author": "Tomomi Imura",
+  "license": "MIT",
+  "dependencies": {
+    "axios": "^0.16.1",
+    "body-parser": "^1.17.1",
+    "express": "^4.15.2",
+    "tsscmp": "^1.0.6",
+    "qs": "^6.6.0"
+  }
+}
